@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fashion Hub | Elite Affiliate Collection</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;900&family=Syncopate:wght@700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.7.0/vanilla-tilt.min.js"></script>
+
+    <style>
+        :root {
+            --accent: #00f2ff;
+            --bg: #020202;
+            --card-bg: rgba(255, 255, 255, 0.07);
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            background: var(--bg); 
+            color: #fff; 
+            font-family: 'Outfit', sans-serif; 
+            overflow-x: hidden;
+        }
+
+        /* Prevent 3D canvas from blocking clicks */
+        #bg-canvas { 
+            position: fixed; top: 0; left: 0; z-index: -1; 
+            pointer-events: none; 
+        }
+
+        /* Navigation */
+        nav {
+            position: fixed; top: 0; width: 100%;
+            padding: 15px 5%;
+            display: flex; justify-content: space-between; align-items: center;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(15px);
+            z-index: 1000;
+            border-bottom: 1px solid var(--border);
+        }
+        .logo { font-family: 'Syncopate', sans-serif; font-size: 1.2rem; color: #fff; text-decoration: none; }
+        .logo span { color: var(--accent); }
+        .nav-links { display: flex; gap: 15px; }
+        .nav-links a { color: #fff; text-decoration: none; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
+
+        /* Filter Section */
+        .filter-bar {
+            margin-top: 80px; padding: 20px 5%;
+            background: rgba(255,255,255,0.02);
+            display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;
+        }
+        .search-box { flex: 1; min-width: 250px; }
+        .search-box input {
+            width: 100%; padding: 12px; border-radius: 5px;
+            background: #111; border: 1px solid var(--border); color: #fff;
+        }
+        select { padding: 10px; background: #111; color: #fff; border: 1px solid var(--border); border-radius: 5px; }
+
+        /* FIXED GRID: 3 on Laptop, 2 on Phone */
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr); /* Laptop Default */
+            gap: 20px;
+            padding: 30px 5%;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 768px) {
+            .product-grid {
+                grid-template-columns: repeat(2, 1fr); /* Phone Default */
+                padding: 15px 2%;
+                gap: 10px;
+            }
+        }
+
+        .product-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+            transition: transform 0.3s ease;
+            position: relative;
+            min-height: 350px; /* Ensures card is visible even if image is loading */
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        
+        .product-card img { 
+            width: 100%; 
+            aspect-ratio: 1/1; 
+            object-fit: cover; 
+            border-radius: 8px; 
+            background: #111; /* Placeholder color */
+        }
+
+        .price { color: var(--accent); font-size: 1.2rem; font-weight: 800; margin: 10px 0; }
+
+        /* Buttons */
+        .btn-glow {
+            background: var(--accent); color: #000; padding: 10px 20px; border: none;
+            border-radius: 4px; font-weight: 800; cursor: pointer; text-decoration: none;
+            display: block; width: 100%; transition: 0.3s; text-align: center;
+        }
+        .btn-glow:hover { box-shadow: 0 0 15px var(--accent); }
+
+        /* Modal */
+        #productModal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); z-index: 2000; display: none;
+            justify-content: center; align-items: center; padding: 20px;
+        }
+        .modal-content {
+            background: #000; width: 100%; max-width: 800px; 
+            display: grid; grid-template-columns: 1fr 1fr;
+            border: 1px solid var(--accent); border-radius: 15px; overflow: hidden;
+        }
+        @media (max-width: 600px) { .modal-content { grid-template-columns: 1fr; } }
+
+        /* Sections */
+        section { padding: 60px 5%; border-top: 1px solid #111; }
+        .section-title { font-family: 'Syncopate'; text-align: center; margin-bottom: 40px; color: var(--accent); }
+
+        /* Contact Form */
+        .contact-form { max-width: 500px; margin: 0 auto; }
+        .contact-form input, .contact-form textarea {
+            width: 100%; padding: 12px; margin-bottom: 15px; background: #111; border: 1px solid #333; color: #fff;
+        }
+
+        #buyAnim {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: var(--accent); color: #000; padding: 20px; font-weight: 900;
+            border-radius: 10px; display: none; z-index: 3000;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="bg-canvas"></canvas>
+    <div id="buyAnim">RESERVING STYLE...</div>
+
+    <nav>
+        <a href="#" class="logo">FASHION<span>HUB</span></a>
+        <div class="nav-links">
+            <a href="#products">Shop</a>
+            <a href="#contact">Contact</a>
+            <a href="#about">About</a>
+            <a href="#policy">Policy</a>
+        </div>
+        <div style="font-size: 10px; color: var(--accent);">IG: @YOUR_ID</div>
+    </nav>
+
+    <!-- Header / Hero -->
+    <header style="padding: 120px 5% 40px; text-align: center;">
+        <h1 style="font-family: 'Syncopate'; font-size: 3rem;">ELITE WEAR</h1>
+        <p style="color: #888; letter-spacing: 4px;">1000+ PRODUCTS CURATED FOR YOU</p>
+    </header>
+
+    <!-- Search & Filters -->
+    <div class="filter-bar">
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Search clothes, shoes..." onkeyup="render()">
+        </div>
+        <select id="catFilter" onchange="render()">
+            <option value="all">Categories</option>
+            <option value="shirt">Shirts</option>
+            <option value="tshirt">T-Shirts</option>
+            <option value="pant">Pants</option>
+            <option value="shoe">Shoes</option>
+            <option value="chappal">Chappals</option>
+        </select>
+        <select id="priceSort" onchange="render()">
+            <option value="low">Price: Low to High</option>
+            <option value="high">Price: High to Low</option>
+        </select>
+    </div>
+
+    <!-- Product Grid -->
+    <div class="product-grid" id="productGrid">
+        <!-- Products load here -->
+    </div>
+
+    <div style="text-align: center; padding: 20px;">
+        <button class="btn-glow" style="width: auto; padding: 10px 40px;" onclick="loadMore()">Load More Products</button>
+    </div>
+
+    <!-- About Section -->
+    <section id="about">
+        <h2 class="section-title">ABOUT FASHION HUB</h2>
+        <p style="text-align: center; max-width: 700px; margin: 0 auto; color: #aaa;">We are a premium affiliate destination. We curate the best clothing and footwear from around the world to ensure you always stay ahead of the trend.</p>
+    </section>
+
+    <!-- Policy Section -->
+    <section id="policy">
+        <h2 class="section-title">OUR POLICY</h2>
+        <p style="text-align: center; max-width: 700px; margin: 0 auto; color: #aaa; font-size: 0.8rem;">Fashion Hub is an affiliate site. Links lead to external stores. Prices and availability are subject to the third-party retailers.</p>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact">
+        <h2 class="section-title">CONTACT US</h2>
+        <div class="contact-form">
+            <form action="https://api.web3forms.com/submit" method="POST">
+                <input type="hidden" name="access_key" value="c5a101bc-af5d-49fe-9ecd-13ab04d061d9">
+                <input type="text" name="name" placeholder="Name" required>
+                <input type="email" name="email" placeholder="Email" required>
+                <textarea name="message" rows="4" placeholder="Your Query" required></textarea>
+                <button type="submit" class="btn-glow">SUBMIT MESSAGE</button>
+            </form>
+        </div>
+    </section>
+
+    <!-- Modal -->
+    <div id="productModal">
+        <div class="modal-content">
+            <img id="modalImg" src="" style="width: 100%; height: 100%; object-fit: cover;">
+            <div style="padding: 30px; position: relative;">
+                <span onclick="closeModal()" style="position: absolute; top: 10px; right: 20px; font-size: 30px; cursor: pointer;">&times;</span>
+                <h2 id="modalName" style="font-family: 'Syncopate'; margin-bottom: 10px;">Product</h2>
+                <p id="modalPrice" class="price">$0.00</p>
+                <p style="color: #888; font-size: 0.9rem; margin-bottom: 20px;">Premium quality fabric with modern design. Perfect for every occasion.</p>
+                <div style="margin-bottom: 20px;">
+                    <label>Size:</label>
+                    <select style="width: 100%;">
+                        <option>S</option><option>M</option><option>L</option><option>XL</option>
+                    </select>
+                </div>
+                <button class="btn-glow" onclick="buyNow()">BUY NOW</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 1. DATA GENERATION
+        const categories = ['shirt', 'tshirt', 'pant', 'shoe', 'chappal'];
+        const items = [];
+        for(let i=1; i<=1000; i++) {
+            const cat = categories[Math.floor(Math.random() * categories.length)];
+            items.push({
+                id: i,
+                name: `Premium ${cat.toUpperCase()} v${i}`,
+                price: Math.floor(Math.random() * 5000) + 499,
+                category: cat,
+                image: `https://picsum.photos/seed/${i + 123}/400/400`
+            });
+        }
+
+        // 2. RENDERER
+        let visibleCount = 12;
+        function render() {
+            const grid = document.getElementById('productGrid');
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const cat = document.getElementById('catFilter').value;
+            const sort = document.getElementById('priceSort').value;
+
+            let filtered = items.filter(i => {
+                return (cat === 'all' || i.category === cat) && (i.name.toLowerCase().includes(search));
+            });
+
+            if(sort === 'low') filtered.sort((a,b) => a.price - b.price);
+            else filtered.sort((a,b) => b.price - a.price);
+
+            const displaySet = filtered.slice(0, visibleCount);
+            
+            grid.innerHTML = displaySet.map(item => `
+                <div class="product-card" onclick="openModal(${item.id})">
+                    <img src="${item.image}" alt="${item.name}">
+                    <div>
+                        <h3>${item.name}</h3>
+                        <p class="price">₹${item.price}</p>
+                        <button class="btn-glow">DETAILS</button>
+                    </div>
+                </div>
+            `).join('');
+
+            // Apply Tilt to new items
+            VanillaTilt.init(document.querySelectorAll(".product-card"), { max: 10, speed: 400 });
+        }
+
+        function loadMore() {
+            visibleCount += 12;
+            render();
+        }
+
+        // 3. UI LOGIC
+        function openModal(id) {
+            const item = items.find(x => x.id === id);
+            document.getElementById('modalImg').src = item.image;
+            document.getElementById('modalName').innerText = item.name;
+            document.getElementById('modalPrice').innerText = `₹${item.price}`;
+            document.getElementById('productModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('productModal').style.display = 'none';
+        }
+
+        function buyNow() {
+            const b = document.getElementById('buyAnim');
+            b.style.display = 'block';
+            gsap.from(b, { scale: 0, opacity: 0, duration: 0.4 });
+            setTimeout(() => {
+                window.open("https://amazon.com", "_blank"); // Your link here
+                b.style.display = 'none';
+            }, 1500);
+        }
+
+        // 4. 3D BACKGROUND (Fixed to not block clicks)
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('bg-canvas'), alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+
+        const starsGeo = new THREE.BufferGeometry();
+        const starCount = 1500;
+        const posArray = new Float32Array(starCount * 3);
+        for(let i=0; i<starCount*3; i++) posArray[i] = (Math.random() - 0.5) * 10;
+        starsGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+        const starsMat = new THREE.PointsMaterial({ size: 0.005, color: '#00f2ff' });
+        const starMesh = new THREE.Points(starsGeo, starsMat);
+        scene.add(starMesh);
+        camera.position.z = 2;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            starMesh.rotation.y += 0.001;
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Start
+        window.onload = render;
+    </script>
+</body>
+</html>
